@@ -26,10 +26,15 @@ import android.content.pm.ProviderInfo;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.Message;
+import android.os.MessageQueue;
 import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.Window;
+import android.widget.FrameLayout;
 
 import com.crazydroid.apm.internal.InstrumentationInternal;
 import com.crazydroid.apm.utils.ReflectAccelerator;
@@ -235,7 +240,7 @@ public class Hooker {
             }
 
             sHostInstrumentation.callActivityOnCreate(activity, icicle);
-            hookDecorView(activity.getWindow(),activity);
+//            hookDecorView(activity.getWindow(),activity);
         }
 
         @Override
@@ -260,12 +265,20 @@ public class Hooker {
         }
 
         @Override
-        public void callActivityOnResume(Activity activity) {
+        public void callActivityOnResume(final Activity activity) {
             super.callActivityOnResume(activity);
             if (activity.getComponentName().getClassName().equals(activityName)) {
                 long time = System.currentTimeMillis() - startTime;
                 Log.i(TAG, "#onResume()#" + activity.getComponentName() + " cost milli seconds:" + time);
             }
+            Looper.myQueue().addIdleHandler(new MessageQueue.IdleHandler() {
+                @Override
+                public boolean queueIdle() {
+                    long time = System.currentTimeMillis() - startTime;
+                    Log.i(TAG, "#onResume()#" + activity.getComponentName() + " cost milli seconds:" + time);
+                    return false;
+                }
+            });
         }
 
         @Override
@@ -374,7 +387,7 @@ public class Hooker {
             }
         });
         try {
-            Field f = window.getClass().getField("mDecor");
+            Field f = window.getClass().getDeclaredField("mDecor");
 //            Field f = PhoneWindow.class.getDeclaredField("IMPL");
             f.setAccessible(true);
 //            final Object impl = f.get(window);
@@ -390,12 +403,14 @@ public class Hooker {
                     return method.invoke(impl, args);
                 }
             };
-            Object newImpl = Proxy.newProxyInstance(context.getClassLoader(), impl.getClass().getInterfaces(), aop);
+            FrameLayout newImpl = (FrameLayout) Proxy.newProxyInstance(context.getClassLoader(), new Class[]{ViewGroup.class}, aop);
             f.set(window, newImpl);
         } catch (Exception ignored) {
             Log.e(TAG, ignored.toString());
         }
     }
+
+
 
 
 }
