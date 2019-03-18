@@ -1,5 +1,9 @@
 package com.crazydroid.apm;
 
+import android.Manifest;
+import android.content.Intent;
+import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 
 import com.crazydroid.apm.fragments.Fragment1;
@@ -11,9 +15,11 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
+import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.view.Menu;
@@ -36,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
-        FragmentManager fragmentManager = getSupportFragmentManager();
+        final FragmentManager fragmentManager = getSupportFragmentManager();
         fragmentManager.registerFragmentLifecycleCallbacks(new FragmentManager.FragmentLifecycleCallbacks() {
             @Override
             public void onFragmentCreated(@NonNull FragmentManager fm, @NonNull Fragment f, @Nullable Bundle savedInstanceState) {
@@ -46,18 +52,48 @@ public class MainActivity extends AppCompatActivity {
         }, true);
         Fragment fragment1 = new Fragment1();
         fragmentManager.beginTransaction().replace(R.id.content_main,fragment1).commit();
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            Thread.sleep(2000);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
 //        new AlertDialog.Builder(this).setTitle("hello").setMessage("123").create().show();
-        getWindow().getDecorView().addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+//        getWindow().getDecorView().addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+//            @Override
+//            public void onLayoutChange(View v, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
+//
+//            }
+//        });
+//        startActivity(new Intent(this,Main2Activity.class));
+//        new AsyncTask(){
+//
+//            @Override
+//            protected Object doInBackground(Object[] objects) {
+//                try {
+//                    Thread.sleep(1000);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+//                return "";
+//            }
+//
+//            @Override
+//            protected void onPostExecute(Object o) {
+//                super.onPostExecute(o);
+//                Log.i("time","onAsyncTaskFinish");
+//                Fragment fragment1 = new Fragment1();
+//                fragmentManager.beginTransaction().replace(R.id.content_main,fragment1).commit();
+//            }
+//        }.execute();
+        new Handler().postDelayed(new Runnable() {
             @Override
-            public void onLayoutChange(View v, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
-
+            public void run() {
+                startActivity(new Intent(MainActivity.this,Main2Activity.class));
             }
-        });
+        },2000);
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+//            ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.CAMERA},1);
+//        }
     }
 
     @Override

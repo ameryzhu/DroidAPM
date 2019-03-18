@@ -1,5 +1,9 @@
 package com.crazydroid.apm;
 
+import android.app.Activity;
+import android.os.Bundle;
+import android.util.Log;
+
 import com.crazydroid.apm.hook.Hooker;
 
 public class MyApplication extends android.app.Application {
@@ -8,5 +12,41 @@ public class MyApplication extends android.app.Application {
         super.onCreate();
         Hooker hooker =new Hooker();
         hooker.onCreate(this);
+        registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
+            @Override
+            public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+                Log.i("application","oncreate"+":"+activity.getComponentName());
+            }
+
+            @Override
+            public void onActivityStarted(Activity activity) {
+                Log.i("application","onstart"+":"+activity.getComponentName());
+            }
+
+            @Override
+            public void onActivityResumed(Activity activity) {
+                Log.i("application","onresume"+":"+activity.getComponentName());
+            }
+
+            @Override
+            public void onActivityPaused(Activity activity) {
+                Log.i("application","onpause"+":"+activity.getComponentName());
+            }
+
+            @Override
+            public void onActivityStopped(Activity activity) {
+                Log.i("application","onstop"+":"+activity.getComponentName());
+            }
+
+            @Override
+            public void onActivitySaveInstanceState(Activity activity, Bundle outState) {
+
+            }
+
+            @Override
+            public void onActivityDestroyed(Activity activity) {
+
+            }
+        });
     }
 }

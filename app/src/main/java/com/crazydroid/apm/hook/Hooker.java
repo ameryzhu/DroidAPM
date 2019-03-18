@@ -112,13 +112,6 @@ public class Hooker {
         public boolean handleMessage(Message msg) {
             switch (msg.what) {
                 case LAUNCH_ACTIVITY:
-                    final Object/*ActivityClientRecord*/ r = msg.obj;
-                    Intent intent = ReflectAccelerator.getIntent(r);
-                    if (intent.getComponent() != null) {
-                        startTime = System.currentTimeMillis();
-                        activityName = intent.getComponent().getClassName();
-                        Log.i(TAG, "#start activity#" + intent.getComponent().getClassName());
-                    }
                     redirectActivity(msg);
                     break;
 
@@ -127,10 +120,10 @@ public class Hooker {
                     break;
 
                 case CREATE_SERVICE:
-                    final Object/*ActivityClientRecord*/ r2 = msg.obj;
-                    Intent intent2 = ReflectAccelerator.getIntent(r2);
-                    if (intent2.getComponent() != null) {
-                        Log.i(TAG, "#start activity#" + intent2.getComponent().getClassName());
+                    final Object/*ActivityClientRecord*/ r3 = msg.obj;
+                    Intent intent3 = ReflectAccelerator.getIntent(r3);
+                    if (intent3.getComponent() != null) {
+                        Log.i(TAG, "#start activity#" + intent3.getComponent().getClassName());
                     }
                     break;
 
@@ -141,9 +134,23 @@ public class Hooker {
             return false;
         }
 
+
         private void redirectActivityForP(Message msg) {
             if (Build.VERSION.SDK_INT >= 28) {
                 // Following APIs cannot be called again since android 9.0.
+                Object/*android.app.servertransaction.ClientTransaction*/ t = msg.obj;
+                List callbacks = ReflectAccelerator.getLaunchActivityItems(t);
+                if (callbacks == null) return;
+                for (final Object/*LaunchActivityItem*/ item : callbacks) {
+                    Intent intent = ReflectAccelerator.getIntentOfLaunchActivityItem(item);
+                    if(intent!=null&&intent.getComponent()!=null) {
+                        Log.i("hook", intent.getComponent().getClassName());
+                        activityName = intent.getComponent().getClassName();
+                        startTime = System.currentTimeMillis();
+                    }
+                }
+
+
                 return;
             }
 
@@ -165,6 +172,13 @@ public class Hooker {
         private void redirectActivity(Message msg) {
             final Object/*ActivityClientRecord*/ r = msg.obj;
             Intent intent = ReflectAccelerator.getIntent(r);
+
+            if (intent.getComponent() != null) {
+                startTime = System.currentTimeMillis();
+                activityName = intent.getComponent().getClassName();
+                Log.i(TAG, "#start activity#" + intent.getComponent().getClassName());
+            }
+
             tryReplaceActivityInfo(intent, new ActivityInfoReplacer() {
                 @Override
                 public void replace(ActivityInfo targetInfo) {
@@ -182,7 +196,7 @@ public class Hooker {
      * Class for redirect activity from Stub(AndroidManifest.xml) to Real(Plugin)
      */
     protected static class InstrumentationWrapper extends Instrumentation
-            implements InstrumentationInternal {
+            implements InstrumentationInternal{
 
         private Instrumentation mBase;
         private static final int STUB_ACTIVITIES_COUNT = 4;
@@ -198,6 +212,7 @@ public class Hooker {
         public ActivityResult execStartActivity(
                 Context who, IBinder contextThread, IBinder token, Activity target,
                 Intent intent, int requestCode, android.os.Bundle options) {
+            Log.i(TAG,"execStartActivity");
             ensureInjectMessageHandler(sActivityThread);
             return ReflectAccelerator.execStartActivity(mBase,
                     who, contextThread, token, target, intent, requestCode, options);
@@ -210,6 +225,7 @@ public class Hooker {
         public ActivityResult execStartActivity(
                 Context who, IBinder contextThread, IBinder token, Activity target,
                 Intent intent, int requestCode) {
+            Log.i(TAG,"execStartActivity2");
             ensureInjectMessageHandler(sActivityThread);
             return ReflectAccelerator.execStartActivity(mBase,
                     who, contextThread, token, target, intent, requestCode);
@@ -275,7 +291,7 @@ public class Hooker {
                 @Override
                 public boolean queueIdle() {
                     long time = System.currentTimeMillis() - startTime;
-                    Log.i(TAG, "#onResume()#" + activity.getComponentName() + " cost milli seconds:" + time);
+                    Log.i(TAG, "#on idle:Finish UI#" + activity.getComponentName() + " cost milli seconds:" + time);
                     return false;
                 }
             });
