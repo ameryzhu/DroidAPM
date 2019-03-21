@@ -76,22 +76,25 @@ public class ActivityAPM {
     private static InstrumentationWrapper sBundleInstrumentation;
     private static ActivityThreadHandlerCallback sActivityThreadHandlerCallback;
 
-
     private static Object sActivityThread;
 
-//    private static volatile Hooker instance;
-//
-//    public Hooker getInstance(){
-//        if(instance==null){
-//            synchronized (Hooker.class){
-//                if(instance==null){
-//                    instance = new Hooker();
-//                }
-//                return instance;
-//            }
-//        }
-//        return  instance;
-//    }
+    private static volatile ActivityAPM instance;
+
+    private ActivityAPM(){
+
+    }
+
+    public static ActivityAPM getInstance(){
+        if(instance==null){
+            synchronized (ActivityAPM.class){
+                if(instance==null){
+                    instance = new ActivityAPM();
+                }
+                return instance;
+            }
+        }
+        return  instance;
+    }
 
     /**
      * Class for restore activity info from Stub to Real
@@ -276,7 +279,7 @@ public class ActivityAPM {
             sHostInstrumentation.callActivityOnCreate(activity, icicle);
             if (activity.getComponentName().getClassName().equals(activityName)) {
                 long time = System.currentTimeMillis() - startTime;
-                Log.i(TAG, "#init()--->init() finish# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + time);
+                Log.i(TAG, "#onCreate()--->onCreate() finish# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + time);
                 startTime = System.currentTimeMillis();
             }
 //            hookDecorView(activity.getWindow(),activity);
@@ -286,8 +289,6 @@ public class ActivityAPM {
         public void callActivityOnStart(Activity activity) {
 
             if (activity.getComponentName().getClassName().equals(activityName)) {
-//                long time = System.currentTimeMillis() - startTime;
-//                Log.i(TAG, "#init() finish--->start onStart()#" + activity.getComponentName() + " cost milli seconds:" + time);
                 startTime = System.currentTimeMillis();
             }
             super.callActivityOnStart(activity);
@@ -296,7 +297,7 @@ public class ActivityAPM {
                 Log.i(TAG, "#onStart()--->onStart() finish# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + time);
                 startTime = System.currentTimeMillis();
             }
-//            sHostInstrumentation.callActivityOnStart(activity);
+            sHostInstrumentation.callActivityOnStart(activity);
         }
 
         @Override
@@ -312,8 +313,6 @@ public class ActivityAPM {
         @Override
         public void callActivityOnResume(final Activity activity) {
             if (activity.getComponentName().getClassName().equals(activityName)) {
-//                long time = System.currentTimeMillis() - startTime;
-//                Log.i(TAG, "#onStart() finish --->start onResume()#" + activity.getComponentName() + " cost milli seconds:" + time);
                 startTime = System.currentTimeMillis();
             }
             super.callActivityOnResume(activity);
@@ -321,18 +320,19 @@ public class ActivityAPM {
                 long time = System.currentTimeMillis() - startTime;
                 Log.i(TAG, "#onResume()--->onResume() finish# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + time);
                 startTime = System.currentTimeMillis();
-//                long timeTotal = System.currentTimeMillis() - startTimeFromPerformLaunch;
-//                Log.i(TAG, "#totalTime1: #" + activity.getComponentName() + " cost milli seconds:" + timeTotal);
             }
             Looper.myQueue().addIdleHandler(new MessageQueue.IdleHandler() {
                 @Override
                 public boolean queueIdle() {
                     long time = System.currentTimeMillis() - startTime;
                     long timeTotal = System.currentTimeMillis() - startTimeFromPerformLaunch;
-                    long timeTotal2 = System.currentTimeMillis() - startTimeFromExecuteStartActivity;
                     Log.i(TAG, "#UI render Finish# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + time);
                     Log.i(TAG, "#totalTime from performLaunchActivity: # " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + timeTotal);
-                    Log.i(TAG, "#totalTime from executeStartActivity:# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + timeTotal2);
+                    //First time launch application executeStartActivity will not execute
+                    if(startTimeFromExecuteStartActivity!=0){
+                        long timeTotal2 = System.currentTimeMillis() - startTimeFromExecuteStartActivity;
+                        Log.i(TAG, "#totalTime from executeStartActivity:# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + timeTotal2);
+                    }
                     return false;
                 }
             });
@@ -385,9 +385,6 @@ public class ActivityAPM {
         }
     }
 
-//    class MyFragmentManagerImpl extends
-
-
     public void init(Application app) {
 
 
@@ -418,52 +415,52 @@ public class ActivityAPM {
         sBundleInstrumentation = wrapper;
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
-    public static void hookDecorView(Window window, Context context){
-        // AOP for pending intent
-        window.getDecorView().getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-            @Override
-            public void onGlobalLayout() {
-                Log.i(TAG,"onGlobalLayout finish");
-            }
-        });
-        ViewTreeObserver observer = window.getDecorView().getViewTreeObserver();
-        observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-            @Override
-            public boolean onPreDraw() {
-//                Log.i(TAG,"onPreDraw finish");
-                return false;
-            }
-        });
-        observer.addOnDrawListener(new ViewTreeObserver.OnDrawListener() {
-            @Override
-            public void onDraw() {
-                Log.i(TAG,"onDraw ");
-            }
-        });
-        try {
-            Field f = window.getClass().getDeclaredField("mDecor");
-//            Field f = PhoneWindow.class.getDeclaredField("IMPL");
-            f.setAccessible(true);
-//            final Object impl = f.get(window);
-            final Object impl = window.getDecorView();
-            InvocationHandler aop = new InvocationHandler() {
-                @Override
-                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                    if("onLayout".equals(method.getName())){
-                        Log.i(TAG,"onlayout");
-                    }else if("onMeasure".equals(method.getName())){
-                        Log.i(TAG,"onMeasure");
-                    }
-                    return method.invoke(impl, args);
-                }
-            };
-            FrameLayout newImpl = (FrameLayout) Proxy.newProxyInstance(context.getClassLoader(), new Class[]{ViewGroup.class}, aop);
-            f.set(window, newImpl);
-        } catch (Exception ignored) {
-            Log.e(TAG, ignored.toString());
-        }
-    }
+//    @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
+//    public static void hookDecorView(Window window, Context context){
+//        // AOP for pending intent
+//        window.getDecorView().getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+//            @Override
+//            public void onGlobalLayout() {
+//                Log.i(TAG,"onGlobalLayout finish");
+//            }
+//        });
+//        ViewTreeObserver observer = window.getDecorView().getViewTreeObserver();
+//        observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+//            @Override
+//            public boolean onPreDraw() {
+////                Log.i(TAG,"onPreDraw finish");
+//                return false;
+//            }
+//        });
+//        observer.addOnDrawListener(new ViewTreeObserver.OnDrawListener() {
+//            @Override
+//            public void onDraw() {
+//                Log.i(TAG,"onDraw ");
+//            }
+//        });
+//        try {
+//            Field f = window.getClass().getDeclaredField("mDecor");
+////            Field f = PhoneWindow.class.getDeclaredField("IMPL");
+//            f.setAccessible(true);
+////            final Object impl = f.get(window);
+//            final Object impl = window.getDecorView();
+//            InvocationHandler aop = new InvocationHandler() {
+//                @Override
+//                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+//                    if("onLayout".equals(method.getName())){
+//                        Log.i(TAG,"onlayout");
+//                    }else if("onMeasure".equals(method.getName())){
+//                        Log.i(TAG,"onMeasure");
+//                    }
+//                    return method.invoke(impl, args);
+//                }
+//            };
+//            FrameLayout newImpl = (FrameLayout) Proxy.newProxyInstance(context.getClassLoader(), new Class[]{ViewGroup.class}, aop);
+//            f.set(window, newImpl);
+//        } catch (Exception ignored) {
+//            Log.e(TAG, ignored.toString());
+//        }
+//    }
 
 
 

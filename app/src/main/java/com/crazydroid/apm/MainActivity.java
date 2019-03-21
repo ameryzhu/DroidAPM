@@ -43,14 +43,14 @@ public class MainActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
-        final FragmentManager fragmentManager = getSupportFragmentManager();
-        fragmentManager.registerFragmentLifecycleCallbacks(new FragmentManager.FragmentLifecycleCallbacks() {
-            @Override
-            public void onFragmentCreated(@NonNull FragmentManager fm, @NonNull Fragment f, @Nullable Bundle savedInstanceState) {
-                super.onFragmentCreated(fm, f, savedInstanceState);
-//                Log.i("time","onFragmentCreated");
-            }
-        }, true);
+//        final FragmentManager fragmentManager = getSupportFragmentManager();
+//        fragmentManager.registerFragmentLifecycleCallbacks(new FragmentManager.FragmentLifecycleCallbacks() {
+//            @Override
+//            public void onFragmentCreated(@NonNull FragmentManager fm, @NonNull Fragment f, @Nullable Bundle savedInstanceState) {
+//                super.onFragmentCreated(fm, f, savedInstanceState);
+////                Log.i("time","onFragmentCreated");
+//            }
+//        }, true);
 //        Fragment fragment1 = new Fragment1();
 //        fragmentManager.beginTransaction().replace(R.id.content_main,fragment1).commit();
 //        try {
