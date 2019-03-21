@@ -38,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                startActivity(new Intent(MainActivity.this,Main2Activity.class));
                 Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
             }
@@ -47,11 +48,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFragmentCreated(@NonNull FragmentManager fm, @NonNull Fragment f, @Nullable Bundle savedInstanceState) {
                 super.onFragmentCreated(fm, f, savedInstanceState);
-                Log.i("time","onFragmentCreated");
+//                Log.i("time","onFragmentCreated");
             }
         }, true);
-        Fragment fragment1 = new Fragment1();
-        fragmentManager.beginTransaction().replace(R.id.content_main,fragment1).commit();
+//        Fragment fragment1 = new Fragment1();
+//        fragmentManager.beginTransaction().replace(R.id.content_main,fragment1).commit();
 //        try {
 //            Thread.sleep(2000);
 //        } catch (InterruptedException e) {
@@ -85,12 +86,12 @@ public class MainActivity extends AppCompatActivity {
 //                fragmentManager.beginTransaction().replace(R.id.content_main,fragment1).commit();
 //            }
 //        }.execute();
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                startActivity(new Intent(MainActivity.this,Main2Activity.class));
-            }
-        },2000);
+//        new Handler().postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                startActivity(new Intent(MainActivity.this,Main2Activity.class));
+//            }
+//        },2000);
 //        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 //            ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.CAMERA},1);
 //        }

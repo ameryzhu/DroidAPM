@@ -30,7 +30,6 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.MessageQueue;
 import android.util.Log;
-import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.Window;
@@ -62,12 +61,14 @@ import androidx.annotation.RequiresApi;
  * consists exclusively of global methods that operate on your product services.</li>
  * </ul>
  */
-public class Hooker {
+public class ActivityAPM {
 
-    private static final String PACKAGE_NAME = Hooker.class.getPackage().getName();
+    private static final String PACKAGE_NAME = ActivityAPM.class.getPackage().getName();
     private static final String TAG = "time";
 
     private static long startTime = 0;
+    private static long startTimeFromPerformLaunch = 0;
+    private static long startTimeFromExecuteStartActivity = 0;
     private static String activityName = "";
 
 
@@ -99,14 +100,7 @@ public class Hooker {
 
         private static final int LAUNCH_ACTIVITY = 100;
         private static final int CREATE_SERVICE = 114;
-        private static final int CONFIGURATION_CHANGED = 118;
-        private static final int ACTIVITY_CONFIGURATION_CHANGED = 125;
         private static final int EXECUTE_TRANSACTION = 159; // since Android P
-
-
-        interface ActivityInfoReplacer {
-            void replace(ActivityInfo info);
-        }
 
         @Override
         public boolean handleMessage(Message msg) {
@@ -119,19 +113,23 @@ public class Hooker {
                     redirectActivityForP(msg);
                     break;
 
-                case CREATE_SERVICE:
-                    final Object/*ActivityClientRecord*/ r3 = msg.obj;
-                    Intent intent3 = ReflectAccelerator.getIntent(r3);
-                    if (intent3.getComponent() != null) {
-                        Log.i(TAG, "#start activity#" + intent3.getComponent().getClassName());
-                    }
-                    break;
-
                 default:
                     break;
             }
 
             return false;
+        }
+
+//        case CREATE_SERVICE:
+//                    final Object/*ActivityClientRecord*/ r3 = msg.obj;
+//                    Intent intent3 = ReflectAccelerator.getIntent(r3);
+//                    if (intent3.getComponent() != null) {
+//                        Log.i(TAG, "#start activity#" + intent3.getComponent().getClassName());
+//                    }
+//                    break;
+
+        interface ActivityInfoReplacer {
+            void replace(ActivityInfo info);
         }
 
 
@@ -174,9 +172,9 @@ public class Hooker {
             Intent intent = ReflectAccelerator.getIntent(r);
 
             if (intent.getComponent() != null) {
-                startTime = System.currentTimeMillis();
                 activityName = intent.getComponent().getClassName();
-                Log.i(TAG, "#start activity#" + intent.getComponent().getClassName());
+                startTimeFromPerformLaunch = System.currentTimeMillis();
+//                Log.i(TAG, "#start activity#" + intent.getComponent().getClassName());
             }
 
             tryReplaceActivityInfo(intent, new ActivityInfoReplacer() {
@@ -207,12 +205,15 @@ public class Hooker {
 
         /**
          * @Override V21+
-         * Wrap activity from REAL to STUB
          */
         public ActivityResult execStartActivity(
                 Context who, IBinder contextThread, IBinder token, Activity target,
                 Intent intent, int requestCode, android.os.Bundle options) {
-            Log.i(TAG,"execStartActivity");
+            activityName = target.getComponentName().getClassName();
+            startTime = System.currentTimeMillis();
+//            startTimeFromPerformLaunch = System.currentTimeMillis();
+            startTimeFromExecuteStartActivity = System.currentTimeMillis();
+            Log.i(TAG,"#execStartActivity()#"+activityName);
             ensureInjectMessageHandler(sActivityThread);
             return ReflectAccelerator.execStartActivity(mBase,
                     who, contextThread, token, target, intent, requestCode, options);
@@ -225,7 +226,9 @@ public class Hooker {
         public ActivityResult execStartActivity(
                 Context who, IBinder contextThread, IBinder token, Activity target,
                 Intent intent, int requestCode) {
-            Log.i(TAG,"execStartActivity2");
+            activityName = target.getComponentName().getClassName();
+            startTime = System.currentTimeMillis();
+            Log.i(TAG,"#execStartActivity#"+activityName);
             ensureInjectMessageHandler(sActivityThread);
             return ReflectAccelerator.execStartActivity(mBase,
                     who, contextThread, token, target, intent, requestCode);
@@ -242,7 +245,21 @@ public class Hooker {
                     }
                 });
             }
+
+            if (intent.getComponent().getClassName().equals(activityName)) {
+                if(startTimeFromExecuteStartActivity!=0){
+                    long time = System.currentTimeMillis() - startTimeFromExecuteStartActivity;
+                    startTime = System.currentTimeMillis();
+                    Log.i(TAG,"#executeActivity()--->newActivity# "+intent.getComponent().getShortClassName()+" cost milli seconds:"+ time);
+                }
+            }
             Activity newActivity = mBase.newActivity(cl, targetClassName[0], intent);
+            if (intent.getComponent().getClassName().equals(activityName)) {
+                if(startTimeFromExecuteStartActivity!=0) {
+                    long time = System.currentTimeMillis() - startTime;
+                    Log.i(TAG, "#newActivity()--->newActivity finish# " + intent.getComponent().getShortClassName() + " cost milli seconds:" + time);
+                }
+            }
             return newActivity;
         }
 
@@ -250,21 +267,33 @@ public class Hooker {
         /** Prepare resources for REAL */
         public void callActivityOnCreate(Activity activity, android.os.Bundle icicle) {
             if (activity.getComponentName().getClassName().equals(activityName)) {
-                long time = System.currentTimeMillis() - startTime;
-                Log.i(TAG, "#onCreate()#" + activity.getComponentName() + " cost milli seconds:" + time);
+//                long time = System.currentTimeMillis() - startTime;
+//                Log.i(TAG, "#startActivity()--->init()#"+time);
+//                Log.i(TAG, "#init() start#");
                 startTime = System.currentTimeMillis();
             }
 
             sHostInstrumentation.callActivityOnCreate(activity, icicle);
+            if (activity.getComponentName().getClassName().equals(activityName)) {
+                long time = System.currentTimeMillis() - startTime;
+                Log.i(TAG, "#init()--->init() finish# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + time);
+                startTime = System.currentTimeMillis();
+            }
 //            hookDecorView(activity.getWindow(),activity);
         }
 
         @Override
         public void callActivityOnStart(Activity activity) {
+
+            if (activity.getComponentName().getClassName().equals(activityName)) {
+//                long time = System.currentTimeMillis() - startTime;
+//                Log.i(TAG, "#init() finish--->start onStart()#" + activity.getComponentName() + " cost milli seconds:" + time);
+                startTime = System.currentTimeMillis();
+            }
             super.callActivityOnStart(activity);
             if (activity.getComponentName().getClassName().equals(activityName)) {
                 long time = System.currentTimeMillis() - startTime;
-                Log.i(TAG, "#onStart()#" + activity.getComponentName() + " cost milli seconds:" + time);
+                Log.i(TAG, "#onStart()--->onStart() finish# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + time);
                 startTime = System.currentTimeMillis();
             }
 //            sHostInstrumentation.callActivityOnStart(activity);
@@ -282,25 +311,37 @@ public class Hooker {
 
         @Override
         public void callActivityOnResume(final Activity activity) {
+            if (activity.getComponentName().getClassName().equals(activityName)) {
+//                long time = System.currentTimeMillis() - startTime;
+//                Log.i(TAG, "#onStart() finish --->start onResume()#" + activity.getComponentName() + " cost milli seconds:" + time);
+                startTime = System.currentTimeMillis();
+            }
             super.callActivityOnResume(activity);
             if (activity.getComponentName().getClassName().equals(activityName)) {
                 long time = System.currentTimeMillis() - startTime;
-                Log.i(TAG, "#onResume()#" + activity.getComponentName() + " cost milli seconds:" + time);
+                Log.i(TAG, "#onResume()--->onResume() finish# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + time);
+                startTime = System.currentTimeMillis();
+//                long timeTotal = System.currentTimeMillis() - startTimeFromPerformLaunch;
+//                Log.i(TAG, "#totalTime1: #" + activity.getComponentName() + " cost milli seconds:" + timeTotal);
             }
             Looper.myQueue().addIdleHandler(new MessageQueue.IdleHandler() {
                 @Override
                 public boolean queueIdle() {
                     long time = System.currentTimeMillis() - startTime;
-                    Log.i(TAG, "#on idle:Finish UI#" + activity.getComponentName() + " cost milli seconds:" + time);
+                    long timeTotal = System.currentTimeMillis() - startTimeFromPerformLaunch;
+                    long timeTotal2 = System.currentTimeMillis() - startTimeFromExecuteStartActivity;
+                    Log.i(TAG, "#UI render Finish# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + time);
+                    Log.i(TAG, "#totalTime from performLaunchActivity: # " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + timeTotal);
+                    Log.i(TAG, "#totalTime from executeStartActivity:# " + activity.getComponentName().getShortClassName() + " cost milli seconds:" + timeTotal2);
                     return false;
                 }
             });
+
         }
 
         @Override
         public void callActivityOnStop(Activity activity) {
             sHostInstrumentation.callActivityOnStop(activity);
-
 
         }
 
@@ -347,16 +388,14 @@ public class Hooker {
 //    class MyFragmentManagerImpl extends
 
 
-    public void onCreate(Application app) {
+    public void init(Application app) {
 
-        Object/*ActivityThread*/ thread;
 
         List<ProviderInfo> providers;
+        Object/*ActivityThread*/ thread;
         Instrumentation base;
-
-        Hooker.InstrumentationWrapper wrapper;
+        ActivityAPM.InstrumentationWrapper wrapper;
         Field f;
-
         // Get activity thread
         thread = ReflectAccelerator.getActivityThread(app);
 
@@ -365,7 +404,7 @@ public class Hooker {
             f = thread.getClass().getDeclaredField("mInstrumentation");
             f.setAccessible(true);
             base = (Instrumentation) f.get(thread);
-            wrapper = new Hooker.InstrumentationWrapper(base);
+            wrapper = new ActivityAPM.InstrumentationWrapper(base);
             f.set(thread, wrapper);
         } catch (Exception e) {
             throw new RuntimeException("Failed to replace instrumentation for thread: " + thread);
